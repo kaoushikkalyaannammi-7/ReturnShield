@@ -1,4 +1,4 @@
-﻿"""ReturnShield Backend Configuration"""
+"""ReturnShield Backend Configuration"""
 import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings
@@ -24,9 +24,9 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = "returnshield_redis_secret"
     REDIS_DB: int = 0
 
-    # Model artifacts
-    MODEL_PATH: str = "/app/ml/artifacts/model.pkl"
-    MODEL_METADATA_PATH: str = "/app/ml/artifacts/model_metadata.json"
+    # Model artifacts (fallback to local relative paths when running outside container)
+    MODEL_PATH: str = "ml/artifacts/model.pkl" if os.path.exists("ml/artifacts/model.pkl") else "/app/ml/artifacts/model.pkl"
+    MODEL_METADATA_PATH: str = "ml/artifacts/model_metadata.json" if os.path.exists("ml/artifacts/model_metadata.json") else "/app/ml/artifacts/model_metadata.json"
     SCHEMA_HASH_EXPECTED: str = ""  # If set, validate against artifact
 
     # Risk policy
@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
+
 
 
 @lru_cache()

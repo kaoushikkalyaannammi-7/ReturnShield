@@ -1,4 +1,4 @@
-﻿"""
+"""
 ReturnShield Redis Behavioral Engine
 =======================================
 Computes real-time behavioral signals using Redis.
@@ -15,6 +15,7 @@ Key prefixes:
 import time
 import json
 import logging
+import asyncio
 from typing import Optional
 import redis.asyncio as aioredis
 from app.config import get_settings
@@ -34,6 +35,8 @@ async def get_redis() -> aioredis.Redis:
             password=settings.REDIS_PASSWORD or None,
             db=settings.REDIS_DB,
             decode_responses=True,
+            socket_connect_timeout=2.0,
+            socket_timeout=2.0,
         )
     return _redis_client
 
@@ -41,8 +44,8 @@ async def get_redis() -> aioredis.Redis:
 async def check_redis_health() -> bool:
     try:
         r = await get_redis()
-        await r.ping()
-        return True
+        res = await asyncio.wait_for(r.ping(), timeout=2.0)
+        return res is True or res == "PONG"
     except Exception:
         return False
 

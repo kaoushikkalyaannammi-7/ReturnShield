@@ -1,4 +1,4 @@
-﻿"""
+"""
 ReturnShield MongoDB Persistence Layer
 ========================================
 Persists transaction decisions, audit trails, and review outcomes.
@@ -21,31 +21,41 @@ async def connect_db():
     url = settings.MONGODB_URL
     if settings.MONGODB_USER and settings.MONGODB_PASSWORD:
         url = f"mongodb://{settings.MONGODB_USER}:{settings.MONGODB_PASSWORD}@{settings.MONGODB_HOST}:{settings.MONGODB_PORT}"
-    _client = AsyncIOMotorClient(url, serverSelectionTimeoutMS=5000)
-    _db = _client[settings.MONGODB_DB]
-    # Create indexes
-    await _db.transactions.create_index("transaction_id", unique=True)
-    await _db.transactions.create_index("created_at")
-    await _db.transactions.create_index("predicted_label")
-    await _db.transactions.create_index("customer_id")
-    await _db.transactions.create_index("device_id")
-    await _db.transactions.create_index("risk_tier")
-    await _db.transactions.create_index("review_status")
-    logger.info(f"MongoDB connected: {settings.MONGODB_URL}/{settings.MONGODB_DB}")
+    try:
+        _client = AsyncIOMotorClient(url, serverSelectionTimeoutMS=2000)
+        # Verify server reachability before creating indexes
+        await _client.admin.command("ping")
+        _db = _client[settings.MONGODB_DB]
+        # Create indexes
+        await _db.transactions.create_index("transaction_id", unique=True)
+        await _db.transactions.create_index("created_at")
+        await _db.transactions.create_index("predicted_label")
+        await _db.transactions.create_index("customer_id")
+        await _db.transactions.create_index("device_id")
+        await _db.transactions.create_index("risk_tier")
+        await _db.transactions.create_index("review_status")
+        logger.info(f"MongoDB connected: {settings.MONGODB_URL}/{settings.MONGODB_DB}")
+    except Exception as e:
+        logger.warning(f"MongoDB connection failed (running in degraded/test mode): {e}")
+        _db = None
 
 
 async def disconnect_db():
-    global _client
+    global _client, _db
     if _client:
         _client.close()
+    _db = None
 
 
 async def check_mongodb_health() -> bool:
+    if _client is None or _db is None:
+        return False
     try:
-        await _db.command("ping")
+        await _client.admin.command("ping")
         return True
     except Exception:
         return False
+
 
 
 def get_db() -> AsyncIOMotorDatabase:
