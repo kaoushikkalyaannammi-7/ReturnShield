@@ -38,12 +38,46 @@ _locust_process: Optional[subprocess.Popen] = None
 _sim_lock = asyncio.Lock()
 
 
+_latencies: list[float] = []
+_start_perf_time: float = 0.0
+
+
+def record_sim_transaction(predicted_label: str, total_ms: float):
+    """Update live simulation metrics with each genuine processed transaction."""
+    global _sim_state, _latencies, _start_perf_time
+    if _sim_state.get("status") != "running":
+        return
+
+    m = _sim_state["metrics"]
+    m["processed"] += 1
+    m["generated"] += 1
+    if predicted_label in m["prediction_counts"]:
+        m["prediction_counts"][predicted_label] += 1
+    else:
+        m["prediction_counts"][predicted_label] = 1
+
+    _latencies.append(total_ms)
+    if len(_latencies) > 2000:
+        _latencies.pop(0)
+
+    elapsed = time.perf_counter() - _start_perf_time
+    if elapsed > 0.1:
+        m["achieved_rps"] = round(m["processed"] / elapsed, 2)
+
+    if _latencies:
+        sorted_lats = sorted(_latencies)
+        n = len(sorted_lats)
+        m["latency_p50"] = round(sorted_lats[int(n * 0.5)], 2)
+        m["latency_p95"] = round(sorted_lats[min(int(n * 0.95), n - 1)], 2)
+        m["latency_p99"] = round(sorted_lats[min(int(n * 0.99), n - 1)], 2)
+
+
 def get_sim_state() -> dict:
     return dict(_sim_state)
 
 
 async def start_simulation(config: dict) -> dict:
-    global _locust_process, _sim_state
+    global _locust_process, _sim_state, _latencies, _start_perf_time
 
     async with _sim_lock:
         if _sim_state["status"] in ("running", "paused"):
@@ -59,12 +93,22 @@ async def start_simulation(config: dict) -> dict:
             "achieved_rps": 0.0, "latency_p50": None, "latency_p95": None, "latency_p99": None,
             "prediction_counts": {"Genuine": 0, "Mistaken": 0, "Suspicious": 0},
         }
+        _latencies = []
+        _start_perf_time = time.perf_counter()
 
         # Build Locust command
-        backend_url = os.environ.get("BACKEND_INTERNAL_URL", "http://localhost:8000")
-        locust_file = "/app/loadtest/locustfile.py"
-        if not os.path.exists(locust_file):
-            locust_file = "loadtest/locustfile.py"
+        backend_url = os.environ.get("BACKEND_INTERNAL_URL", "http://127.0.0.1:8000")
+        locust_file = os.environ.get("LOCUST_FILE")
+        if not locust_file or not os.path.exists(locust_file):
+            candidates = [
+                "/app/loadtest/locustfile.py",
+                os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "loadtest", "locustfile.py")),
+                "loadtest/locustfile.py",
+            ]
+            for c in candidates:
+                if os.path.exists(c):
+                    locust_file = c
+                    break
 
         users = config.get("concurrency", 5)
         rps = config.get("target_rps", 5.0)
@@ -94,9 +138,9 @@ async def start_simulation(config: dict) -> dict:
         try:
             _locust_process = subprocess.Popen(
                 cmd, env=env,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-            logger.info(f"Locust started. PID={_locust_process.pid}, run_id={run_id}")
+            logger.info(f"Locust started. PID={_locust_process.pid}, run_id={run_id}, file={locust_file}")
 
             # Schedule auto-stop
             asyncio.create_task(_auto_stop_after(duration + 10))

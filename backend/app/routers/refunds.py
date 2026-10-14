@@ -1,4 +1,4 @@
-﻿"""Refunds Router - core transaction processing endpoint."""
+"""Refunds Router - core transaction processing endpoint."""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
@@ -18,6 +18,7 @@ from app.redis_features import (
 from app.risk_policy import calculate_risk_score, get_top_factors, POLICY_VERSION
 from app.database import persist_transaction
 from app.streaming import publish_event
+from app.sim_control import record_sim_transaction
 from shared.feature_schema import FEATURE_NAMES, LABEL_MAP
 
 router = APIRouter()
@@ -209,6 +210,9 @@ async def submit_refund(
         "total_ms": round(total_ms, 2),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
+
+    # Record simulation metrics if active
+    record_sim_transaction(predicted_label, total_ms)
 
     logger.info(
         f"Transaction {transaction_id}: label={predicted_label}, score={risk_score}, "
