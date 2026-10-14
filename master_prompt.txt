@@ -1,0 +1,1459 @@
+<USER_REQUEST>
+# RETURNSHIELD
+
+## Ultimate Master Build Prompt for Google Antigravity
+
+**Project:** ReturnShield
+**Problem Statement:** PS #6, Detecting Refund and Return Abuse
+**Time budget:** Approximately 6 hours
+**Mode:** Autonomous, incremental, test-driven full-stack implementation
+**Primary objective:** Build a polished, genuinely integrated, demo-ready application with a reproducible local Docker deployment.
+
+---
+
+# 0. YOUR ROLE AND OPERATING CONTRACT
+
+You are the autonomous engineering agent responsible for designing, implementing, integrating, testing, documenting, and preparing ReturnShield for a hackathon demonstration.
+
+Act as a principal software architect, senior full-stack developer, ML engineer, data engineer, distributed-systems engineer, DevOps engineer, security reviewer, product designer, and technical demo strategist.
+
+You must deliver an actual working application, not just architecture documents, mockups, disconnected components, or generated source code that has never been executed.
+
+## Mandatory operating rules
+
+1. Inspect the existing workspace before creating, overwriting, moving, or deleting anything.
+2. Preserve all user-supplied source files and datasets. Never silently overwrite or relabel them.
+3. Maintain one living checklist with statuses: `Not Started`, `In Progress`, `Implemented`, `Tested`, `Verified`, and `Blocked`.
+4. Work incrementally. After each major stage, run relevant tests and preserve a working version.
+5. Implement the smallest complete end-to-end path before expanding secondary features.
+6. Never fabricate model metrics, test results, performance numbers, screenshots, live traffic, or deployment success.
+7. Never display mock predictions as real model predictions.
+8. Never silently bypass Redis, MongoDB, model inference, authentication, or validation to make the demo appear functional.
+9. Keep model prediction, behavioral evidence, and final policy decision separate in the API, database, logs, and UI.
+10. If a requirement cannot be completed within the deadline, implement a clearly documented minimal version when appropriate and report the remaining gap honestly.
+11. Ask the user only when a genuine blocker requires a decision. Dataset incompatibility and non-trivial relabeling are examples of real blockers.
+12. Do not stop after writing a plan. Begin implementation immediately after the workspace and dataset audit.
+13. Use the existing repository's conventions if a project already exists. Do not create a nested duplicate project unnecessarily.
+14. Use sensible engineering judgment for unspecified details, document the decisions, and continue.
+
+## Priority order
+
+**P0: Core correctness**
+
+- Dataset and workspace audit.
+- Shared feature schema.
+- FastAPI request processing.
+- Real Redis behavioral context.
+- Model inference and versioned risk policy.
+- MongoDB persistence.
+- One working end-to-end transaction flow.
+- Docker Compose startup and readiness.
+
+**P1: Essential hackathon demonstration**
+
+- Real Locust traffic.
+- Simulation controls inside the main React application.
+- Live transaction updates.
+- Transaction investigation.
+- Measured performance.
+- Repeatable coordinated-device demonstration.
+- Automated integration tests.
+
+**P2: Refinement**
+
+- Advanced explainability.
+- Additional analytics.
+- Visual refinements.
+- Optional cloud deployment.
+- Nonessential extensions.
+
+Do not sacrifice a working P0/P1 demonstration to finish a low-priority feature.
+
+---
+
+# 1. PROBLEM STATEMENT AND PRODUCT VISION
+
+An online seller receives refund and return requests that may be:
+
+- **Genuine:** A legitimate refund or return request.
+- **Mistaken:** An honest mistake, accidental duplicate, wrong-size selection, or genuine product issue.
+- **Suspicious:** A request that exhibits concerning patterns requiring additional investigation.
+
+Manual review is slow and costly. Simple static rules may miss coordinated behavior, while overly aggressive rules can unfairly penalize honest customers.
+
+ReturnShield is an ML-assisted refund-risk monitoring platform that combines transaction features, customer history, real-time Redis behavioral signals, and a transparent decision policy.
+
+## Core product workflow
+
+A refund request enters the backend.
+
+1. Validate the request.
+2. Check idempotency and transaction state.
+3. Retrieve authoritative behavioral context from Redis.
+4. Construct the exact model feature vector.
+5. Run the trained three-class classifier.
+6. Calculate the risk score and risk tier.
+7. Apply a versioned policy to recommend an action.
+8. Persist the decision and evidence in MongoDB.
+9. Return the structured result to the caller.
+10. Publish the real event to the React dashboard.
+
+The dashboard allows an analyst to investigate a transaction, examine the evidence, monitor system health, and control a live traffic simulation.
+
+## Essential innovation
+
+The key demonstration is that a request that looks ordinary in isolation may become more concerning when repeated requests or shared-device activity accumulate.
+
+The system must prove this using real Redis state, actual API requests, model predictions, and the documented policy.
+
+**A Suspicious prediction is not proof of fraud.** The system must support human review, avoid unsupported accusations, and never take irreversible action solely because of a model score.
+
+---
+
+# 2. REQUIRED TECHNOLOGY STACK
+
+Use this stack unless an existing repository imposes a strong compatibility constraint.
+
+| Component          | Technology                          | Responsibility                                                     |
+| ------------------ | ----------------------------------- | ------------------------------------------------------------------ |
+| Frontend           | React + Vite                        | Analyst dashboard and simulation controls                          |
+| API                | Python + FastAPI                    | Validation, orchestration, inference, policy, persistence          |
+| ML                 | XGBoost                             | Three-class classification                                         |
+| Behavioral engine  | Redis                               | Sliding windows, repeated activity, shared identities, idempotency |
+| Persistent storage | MongoDB                             | Decisions, audit history, features, review outcomes                |
+| Load generator     | Locust                              | Actual HTTP traffic to the backend                                 |
+| Containerization   | Docker + Docker Compose             | Reproducible local stack                                           |
+| Charts             | One suitable React charting library | Real-time analytics and performance visualizations                 |
+| Testing            | Pytest plus suitable frontend tests | Unit, integration, and end-to-end verification                     |
+
+Use pinned or bounded dependency versions compatible with one another. Avoid adding libraries without a clear purpose.
+
+Use environment variables for configuration. Never commit credentials.
+
+---
+
+# 3. STAGE ONE: WORKSPACE AND DATASET AUDIT
+
+This stage is mandatory and must happen first.
+
+## 3.1 Workspace inspection
+
+Inspect the available workspace for:
+
+- Existing source code.
+- Git repository and current changes.
+- Datasets in CSV, Parquet, JSON, Excel, or other formats.
+- Notebooks and preprocessing scripts.
+- Model artifacts and training reports.
+- Environment files and configuration.
+- Existing tests and documentation.
+- Existing Docker files and services.
+
+Report actual filenames and paths. Distinguish supplied files from newly generated files.
+
+Do not replace existing work without a documented reason.
+
+## 3.2 Prepared dataset protocol
+
+The user already has a prepared dataset that may be supplied to the workspace. Do not assume it is absent merely because it is not attached to the current conversation.
+
+If the dataset is accessible:
+
+1. Inspect its actual contents before training.
+2. Identify the target column and label meanings.
+3. Report columns, types, class balance, missing values, duplicates, near-duplicates, ranges, and possible leakage.
+4. Check whether its labels genuinely support the three-class refund-abuse problem.
+5. Map its columns to the shared schema.
+6. Document every transformation and semantic mismatch.
+7. Use it as the primary training source if suitable.
+8. Preserve the original files as read-only inputs.
+9. Save cleaned data separately.
+10. Record a dataset fingerprint in the training report.
+
+Create:
+
+- `docs/dataset_audit.md`
+- `docs/feature_mapping.md`
+- A machine-readable dataset audit report.
+
+Never invent labels or silently reinterpret unrelated fraud labels as verified refund-abuse labels. Ask for approval before any non-trivial relabeling.
+
+If the dataset is absent, continue building components that do not depend on real training. Ask the user to provide the dataset when model training becomes a genuine blocker.
+
+## 3.3 Synthetic fallback
+
+Synthetic data may be used for reproducible development, integration testing, and a clearly labeled demonstration.
+
+It must not silently replace a suitable supplied dataset.
+
+Never claim synthetic-data metrics represent real-world fraud-detection performance.
+
+---
+
+# 4. REPOSITORY STRUCTURE
+
+Adapt this layout to the existing workspace instead of blindly recreating it.
+
+```text
+returnshield/
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+├── README.md
+├── shared/
+│   └── feature_schema.py
+├── data/
+│   ├── raw/
+│   ├── derived/
+│   └── live_traffic_pool.csv
+├── ml/
+│   ├── validate_data.py
+│   ├── prepare_data.py
+│   ├── generate_synthetic_data.py
+│   ├── train.py
+│   ├── evaluate.py
+│   ├── explain.py
+│   └── artifacts/
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── schemas/
+│   │   ├── routers/
+│   │   ├── services/
+│   │   ├── redis_features.py
+│   │   ├── idempotency.py
+│   │   ├── model_loader.py
+│   │   ├── risk_policy.py
+│   │   ├── database.py
+│   │   ├── sim_control.py
+│   │   ├── metrics.py
+│   │   └── streaming.py
+│   └── tests/
+├── loadtest/
+│   ├── locustfile.py
+│   ├── scenarios.py
+│   └── tests/
+├── frontend/
+│   └── src/
+│       ├── api/
+│       ├── components/
+│       ├── pages/
+│       ├── hooks/
+│       ├── charts/
+│       ├── utils/
+│       └── styles/
+└── docs/
+    ├── architecture.md
+    ├── api.md
+    ├── dataset_audit.md
+    ├── feature_mapping.md
+    ├── risk_policy.md
+    ├── demo_script.md
+    ├── verification_report.md
+    ├── troubleshooting.md
+    └── deployment.md
+```
+
+Keep the project modular but avoid unnecessary abstraction.
+
+Create one shared feature-schema module used by preparation, training, evaluation, inference, and simulation code. Do not duplicate the feature list independently across services.
+
+---
+
+# 5. EXACT MACHINE-LEARNING FEATURE CONTRACT
+
+The model uses exactly these 12 features, in the order defined below.
+
+| #  | Feature                    | Type and definition                                                       |
+| -- | -------------------------- | ------------------------------------------------------------------------- |
+| 1  | `account_age_days`         | Integer, account age at the request timestamp                             |
+| 2  | `total_past_orders`        | Integer, completed orders before the current request                      |
+| 3  | `historical_return_ratio`  | Float from 0 to 1, historical returns divided by eligible previous orders |
+| 4  | `past_inr_claims`          | Integer, previous item-not-received or empty-box claims                   |
+| 5  | `item_price`               | Float, item price in INR                                                  |
+| 6  | `product_category_code`    | Integer 1 to 5                                                            |
+| 7  | `return_reason_code`       | Integer 1 to 5                                                            |
+| 8  | `hours_since_delivery`     | Float, delivery to refund request                                         |
+| 9  | `weight_discrepancy_grams` | Nullable float, dispatch weight minus return-scan weight                  |
+| 10 | `shared_identity_links`    | Integer, distinct other accounts sharing a defined identity               |
+| 11 | `is_cod_order`             | Binary, 1 means cash on delivery                                          |
+| 12 | `purchased_in_sale`        | Binary, 1 means purchased during a sale                                   |
+
+## Category mappings
+
+`product_category_code`:
+
+- 1: Electronics
+- 2: Fashion/Apparel
+- 3: Footwear
+- 4: Home
+- 5: Books
+
+`return_reason_code`:
+
+- 1: Wrong Size/Fit
+- 2: Not Working/Technical Issue
+- 3: Empty Box/Missing Item
+- 4: Physical Damage
+- 5: Changed Mind
+
+Labels:
+
+- `0`: Genuine
+- `1`: Mistaken
+- `2`: Suspicious
+
+Store this schema, category mapping, label mapping, nullability, validation rules, and schema hash alongside the trained model.
+
+Reject incompatible model artifacts. Training and inference must use the same feature order and semantic definitions.
+
+## 5.1 Prediction timing and leakage prevention
+
+The initial decision occurs when a refund request is submitted.
+
+A return-scan weight discrepancy may not yet exist. Therefore, `weight_discrepancy_grams` is nullable and training data must reproduce realistic missingness.
+
+Never train on information that would not be available at prediction time.
+
+Define the timestamp at which every feature becomes available. Do not allow post-decision outcomes, future events, scenario intent, or UI metadata into the model.
+
+The optional future re-scoring of a returned item is outside the core implementation.
+
+## 5.2 Redis and model feature consistency
+
+The backend computes `shared_identity_links` from authoritative Redis identity relationships.
+
+The client must never be trusted to supply this value.
+
+The live-traffic generator may use a scenario's intended identity-sharing pattern to choose identifiers, but the API must independently calculate the actual value.
+
+Training data must define this feature consistently with inference. If a compatible source feature is unavailable, document the mismatch and do not fabricate equivalence.
+
+Additional Redis behavioral signals, such as recent request counts, repeated attempts, and time since the previous request, are used by the separate policy layer. They are not silently appended to the 12-feature model.
+
+---
+
+# 6. TRAINING DATA AND MODEL PIPELINE
+
+## 6.1 Training dataset
+
+The intended training representation is:
+
+`train_data.csv`
+
+It contains 12 model features and one `label` column.
+
+If synthetic data is required, implement a configurable generator with:
+
+- Default size around 30,000 records.
+- Configurable size, approximately 10,000 to 50,000.
+- Reproducible random seed.
+- Overlapping behaviors between classes.
+- Realistic missing values.
+- Reasonable ranges and class balance.
+- Honest mistakes that are not trivially distinguishable from suspicious behavior.
+- No single feature that perfectly reveals the label.
+
+Document the synthetic labeling assumptions. Do not represent synthetic labels as verified ground truth.
+
+## 6.2 Independent live traffic pool
+
+Create:
+
+`data/live_traffic_pool.csv`
+
+Default approximately 1,000 records, with configurable size.
+
+It contains the 12 feature columns plus four UI-only metadata fields:
+
+- `request_id`
+- `customer_name`
+- `product_name`
+- `city`
+
+Metadata must never enter the model matrix.
+
+The pool has no `label` column. This does not, by itself, establish that the pool is independent of training data. Use a separation strategy and check for near-duplicate leakage.
+
+The generator may maintain a private scenario-intent tag to implement scenario proportions. Never send this tag to the API or use it as a prediction.
+
+Use a UUID `transaction_id` and a separate `Idempotency-Key` for each new transaction. A display reference such as `REF-90412` is not an idempotency key.
+
+## 6.3 Training process
+
+Provide reproducible scripts that:
+
+1. Load and validate the source data.
+2. Apply documented transformations.
+3. Check label validity and leakage.
+4. Split training, validation, and held-out test data.
+5. Use group-aware or time-aware splitting where applicable.
+6. Train XGBoost for the three-class task.
+7. Handle missing values and class imbalance appropriately.
+8. Evaluate on genuinely held-out data.
+9. Save the model and required artifacts.
+10. Write a machine-readable evaluation report.
+
+Artifacts should include:
+
+- Model.
+- Feature schema and schema hash.
+- Label mapping.
+- Preprocessing configuration.
+- Dataset fingerprint.
+- Random seed.
+- Library versions.
+- Training timestamp.
+- Evaluation results.
+
+Training must never run automatically during API startup.
+
+Provide a documented one-off training command or optional Docker Compose training profile.
+
+If model training fails, report the cause. Do not generate a fake model artifact or fabricate successful training.
+
+## 6.4 Evaluation
+
+Report:
+
+- Per-class precision, recall, and F1.
+- Confusion matrix.
+- Macro-F1.
+- Multiclass log loss when appropriate.
+- One-vs-rest PR-AUC where class support makes the metric meaningful.
+- Held-out dataset size and class distribution.
+
+Pay particular attention to honest `Mistaken` requests incorrectly classified as `Suspicious`.
+
+Discuss false-positive trade-offs. Do not rely on accuracy alone.
+
+Provide per-prediction explanations using SHAP or another suitable method where feasible. Explanations must reflect actual model outputs and must not claim a feature proves abuse.
+
+---
+
+# 7. RISK SCORE AND DECISION POLICY
+
+The model prediction and final operational action are different outputs.
+
+## 7.1 Three separate concepts
+
+**Model prediction:** Class probabilities for Genuine, Mistaken, and Suspicious.
+
+**Behavioral evidence:** Actual signals calculated from Redis.
+
+**Policy decision:** Final risk tier and recommended action after combining model output with documented behavioral rules.
+
+Keep these separate in every API response, database record, investigation view, and report.
+
+## 7.2 Risk score
+
+Define a documented score from 0 to 100.
+
+A possible starting formula is:
+
+`base_score = 100 × (P(Suspicious) + w × P(Mistaken))`
+
+Then apply documented, bounded Redis overlay increments and clamp the result to 0 to 100.
+
+Choose and document `w`, the overlay rules, thresholds, and policy version.
+
+This score is an operational risk index. Do not call it a calibrated fraud probability unless calibration has actually been assessed.
+
+Define configurable tiers, for example:
+
+- Low
+- Elevated
+- High
+
+Map tiers to proportional recommendations:
+
+- Routine processing.
+- Additional verification.
+- Human review.
+
+Do not automatically reject every high-risk request. A model score alone is insufficient grounds for irreversible action.
+
+Never treat COD, sale purchase, new accounts, or a product category as proof of abuse.
+
+---
+
+# 8. REDIS REAL-TIME BEHAVIORAL ENGINE
+
+Redis is a core functional component, not an optional cache.
+
+Maintain behavioral information such as:
+
+- Refund/request counts in recent time windows.
+- Recent refund amount totals.
+- Time since the previous request.
+- Repeated-attempt counts.
+- Per-customer activity.
+- Per-device activity.
+- Distinct accounts sharing a device.
+- Shared payment and delivery identity relationships when those identifiers are supplied.
+- Idempotency records.
+- Short-lived processing state.
+
+Use suitable Redis data structures such as sorted sets, sets, hashes, and strings with TTLs.
+
+## Correctness requirements
+
+1. Use consistent timestamps.
+2. Trim expired sliding-window entries.
+3. Bound memory and set sensible TTLs.
+4. Make concurrent updates atomic using Lua scripts or Redis transactions as appropriate.
+5. Define behavior for duplicate, retried, stale, and out-of-order events.
+6. Never trust client-supplied behavioral counters.
+7. Persist the exact behavioral snapshot used in each decision.
+8. Record the Redis feature version.
+9. Do not expose Redis publicly by default.
+10. Require an environment-configured Redis password.
+
+Test concurrent requests and window-boundary behavior.
+
+The coordinated-device demonstration must show several distinct customer IDs using a shared device ID. Subsequent requests must reflect the actual accumulated Redis context.
+
+---
+
+# 9. FASTAPI BACKEND
+
+Implement a modular FastAPI service with Pydantic request/response schemas.
+
+Use the `/api/v1` prefix for application endpoints.
+
+## 9.1 Request workflow
+
+For every refund request:
+
+1. Validate the payload.
+2. Check transaction uniqueness and idempotency state.
+3. Separate display metadata from ML inputs.
+4. Compute authoritative Redis features.
+5. Build the model input from the shared schema.
+6. Run inference and measure inference latency.
+7. Apply the versioned risk policy.
+8. Persist the decision and audit evidence in MongoDB.
+9. Return the result only according to the documented persistence policy.
+10. Publish a real event to the frontend stream.
+
+Do not return success for a decision that was never persisted when persistence is required by the contract.
+
+## 9.2 Validation
+
+Reject invalid or malformed inputs, including:
+
+- Negative or invalid prices.
+- Invalid category or reason codes.
+- Ratios outside 0 to 1.
+- Invalid binary fields.
+- Invalid counts and timestamps.
+- Unexpected feature names.
+- Oversized request bodies.
+- Malformed identifiers.
+
+Support the documented nullable weight field without silently converting arbitrary invalid values into valid values.
+
+## 9.3 Required API capabilities
+
+Implement and document:
+
+- Refund request submission.
+- Transaction listing.
+- Search and filtering.
+- Transaction details.
+- Metrics summary.
+- Metrics time series.
+- Model information and versions.
+- Health and readiness.
+- Live event streaming.
+- Live stream reconnection and history recovery.
+- Authorized reviewer actions.
+- Simulation start, pause, resume, stop, and configuration.
+- Simulation metrics.
+- Presentation-counter reset.
+
+Use OpenAPI documentation generated by FastAPI.
+
+## 9.4 Suggested endpoint contract
+
+Use consistent request and response models. Adjust route names if justified, but preserve these capabilities.
+
+```text
+GET    /api/v1/health
+GET    /api/v1/ready
+GET    /api/v1/model/info
+
+POST   /api/v1/refunds
+GET    /api/v1/transactions
+GET    /api/v1/transactions/{transaction_id}
+
+GET    /api/v1/metrics/summary
+GET    /api/v1/metrics/timeseries
+GET    /api/v1/events
+
+POST   /api/v1/reviews/{transaction_id}
+GET    /api/v1/simulation/status
+POST   /api/v1/simulation/start
+POST   /api/v1/simulation/pause
+POST   /api/v1/simulation/resume
+POST   /api/v1/simulation/stop
+PATCH  /api/v1/simulation/config
+GET    /api/v1/simulation/metrics
+POST   /api/v1/simulation/reset
+```
+
+Document authentication requirements for administrative and reviewer endpoints.
+
+## 9.5 Response shape
+
+Return structured fields equivalent to:
+
+```json
+{
+  "transaction_id": "uuid",
+  "request_id": "REF-90412",
+  "prediction": {
+    "class_id": 2,
+    "label": "Suspicious",
+    "probabilities": {
+      "Genuine": 0.12,
+      "Mistaken": 0.18,
+      "Suspicious": 0.70
+    },
+    "model_version": "version"
+  },
+  "risk": {
+    "score": 76,
+    "tier": "High",
+    "policy_version": "version",
+    "recommended_action": "Human review"
+  },
+  "behavioral_evidence": {},
+  "feature_snapshot": {},
+  "top_factors": [],
+  "latency_ms": {
+    "inference": 0,
+    "total": 0
+  },
+  "status": "processed"
+}
+```
+
+The numbers above are illustrative schema examples, not target metrics or precomputed predictions. Never hard-code them as real responses.
+
+## 9.6 Health and failure behavior
+
+Health and readiness are different.
+
+- Health indicates that the process is alive.
+- Readiness indicates that required dependencies and model artifacts are available for correct operation.
+
+If the model artifact is missing or invalid, report degraded readiness and do not silently serve fake predictions.
+
+If Redis is unavailable, either reject scoring with a clear service error or implement an explicitly labeled degraded mode that requires human review. Choose one behavior and test it.
+
+If MongoDB is unavailable, follow a documented failure/retry policy. Do not falsely report a persisted decision.
+
+Document the ordering of Redis and MongoDB writes, retry behavior, and recovery from partial failures.
+
+---
+
+# 10. MONGODB PERSISTENCE AND AUDIT
+
+Persist each processed transaction with fields equivalent to:
+
+- Transaction ID.
+- Display request ID.
+- Synthetic customer and product metadata.
+- Original validated request fields.
+- Exact model feature snapshot.
+- Redis behavioral evidence.
+- Model prediction and probabilities.
+- Risk score and tier.
+- Recommended action.
+- Model, policy, schema, and behavioral-feature versions.
+- Inference and total latency.
+- Processing status.
+- Review status and reviewer outcome when available.
+- Creation and update timestamps.
+
+Create appropriate indexes for:
+
+- Unique transaction ID.
+- Timestamp.
+- Classification.
+- Customer.
+- Device.
+- Risk tier.
+- Review status.
+
+Use a persistent Docker volume.
+
+Keep durable audit history in MongoDB and short-lived, high-frequency behavioral state in Redis.
+
+Do not assume Redis and MongoDB updates are one atomic transaction. Document partial-failure recovery and test the chosen strategy.
+
+---
+
+# 11. REAL LOCUST TRAFFIC GENERATION
+
+Locust must generate actual HTTP requests to FastAPI. It must never write fake predictions directly to MongoDB or the dashboard, and it must never bypass Redis or inference.
+
+## 11.1 Traffic scenarios
+
+Implement:
+
+1. Randomized mixed traffic.
+2. Genuine-only traffic.
+3. Mistaken-heavy traffic.
+4. Suspicious-heavy traffic.
+5. Coordinated multi-account/device-sharing traffic.
+
+Mixed mode supports configurable percentages for Genuine, Mistaken, and Suspicious scenario intents. The percentages must sum to 100%.
+
+Scenario intent determines which requests the generator selects or constructs. It is never sent as a prediction label to the API.
+
+Changing the selected scenario or proportions must actually change the generated request distribution.
+
+Write a test that samples generated requests and verifies the configured distribution within a documented statistical tolerance.
+
+## 11.2 Coordinated behavior
+
+Create realistic requests from multiple distinct synthetic customers that share a device identity. Support repeated requests and optional shared payment/delivery identifiers.
+
+The backend must independently calculate the resulting behavioral context.
+
+Demonstrate how the Redis evidence and policy response evolve as activity accumulates. Do not guarantee that every repeated request produces a higher score; show actual measured behavior.
+
+## 11.3 Simulation controls
+
+The simulation is controlled from the main React application.
+
+Support:
+
+- Start.
+- Pause.
+- Resume.
+- Stop.
+- Target requests per second.
+- Virtual users/concurrency.
+- Duration.
+- Scenario selection.
+- Scenario proportions.
+- Optional reproducibility seed.
+- Current configuration and state.
+
+React must call authenticated backend endpoints. React must not generate the load itself.
+
+FastAPI controls the internal Locust service. Keep Locust administration inaccessible to the browser and unpublished to the host by default.
+
+Use a shared configuration mechanism and a justified Locust control design. If the preferred design cannot be implemented reliably, use a simpler tested design while preserving all functional requirements.
+
+## 11.4 Guardrails
+
+- Only one active simulation at a time.
+- Hard caps on duration, concurrency, and RPS.
+- Caps configurable through environment variables.
+- Authenticated administrative controls.
+- Reliable emergency stop.
+- Automatic stop when duration expires.
+- No accidental unlimited traffic.
+- No stuck idempotency state after stopping.
+- No destructive reset without confirmation.
+
+Pause must genuinely stop new request issuance while preserving the run state, and resume must restore it. If the implementation cannot support true pause semantics, do not label a stop operation as pause.
+
+## 11.5 Real metrics
+
+Measure and expose:
+
+- Configured target RPS.
+- Achieved RPS.
+- Current users/concurrency.
+- Generated requests.
+- Successfully processed requests.
+- Failed requests.
+- HTTP status distribution.
+- p50, p95, and p99 latency when sample sizes permit.
+- Inference versus total API latency.
+- Prediction counts by class.
+- Configured versus observed scenario mix.
+- Current simulator state.
+- Run ID and timestamps.
+
+Clearly distinguish generated, attempted, processed, and failed requests.
+
+Do not claim the system achieved the configured target simply because it was requested.
+
+Provide documented CLI commands for headless Locust runs.
+
+## 11.6 Reset behavior
+
+Provide a controlled action to reset presentation counters and seeded demo state.
+
+Keep this separate from deletion of persistent audit records. Never silently erase transaction history.
+
+---
+
+# 12. FRONTEND: PREMIUM ENTERPRISE FINTECH DASHBOARD
+
+The frontend is a major part of the judging experience.
+
+Build ReturnShield as a polished enterprise risk-monitoring platform, not a generic AI landing page or template admin dashboard.
+
+Prioritize visual hierarchy, consistent spacing, professional typography, restrained colors, readable tables, meaningful charts, and clear analyst workflows.
+
+## 12.1 Design system
+
+Define reusable design tokens for:
+
+- Page and surface backgrounds.
+- Primary and secondary text.
+- Borders and separators.
+- Interactive controls.
+- Success, warning, and high-risk states.
+- Chart colors.
+- Typography.
+- Spacing.
+- Corner radii.
+- Shadows.
+- Focus indicators.
+
+Choose a consistent light or dark theme deliberately.
+
+Avoid excessive gradients, neon, glowing borders, glassmorphism, unnecessary animation, and giant rounded-card layouts.
+
+Use tabular numerals for money, counts, and latency.
+
+Risk states must always include readable text, not color alone:
+
+- Genuine: restrained green.
+- Mistaken: amber.
+- Suspicious: red.
+- Neutral/informational: subdued neutral or blue.
+
+## 12.2 Application shell
+
+Create a compact professional navigation rail or sidebar and a restrained header.
+
+Show service status for:
+
+- API.
+- Redis.
+- MongoDB.
+- Model readiness.
+- Live stream connection.
+
+Primary navigation:
+
+1. Overview.
+2. Live Transactions.
+3. Traffic Simulation.
+4. Risk Analytics.
+5. Transaction Investigation.
+
+System Health/Settings may be included if functional.
+
+Every visible navigation item must work. No empty pages or dead buttons.
+
+## 12.3 Overview page
+
+Show a limited set of useful operational metrics:
+
+- Transactions processed.
+- Requests requiring review.
+- Suspicious classifications.
+- Observed RPS.
+- p95 latency.
+- Failure rate.
+
+Show units, meaningful context, and honest empty states.
+
+Do not invent percentage changes, historical trends, or initial statistics.
+
+Separate configured load from measured throughput.
+
+## 12.4 Live transaction table
+
+Include:
+
+- Request ID.
+- Customer.
+- Product.
+- City.
+- Item price in INR.
+- Predicted class.
+- Risk score.
+- Recommended action.
+- Processing time.
+
+Implement working:
+
+- Search.
+- Classification filters.
+- Risk-tier filters.
+- Sorting.
+- Loading states.
+- Empty states.
+- Error states.
+- Stable updates.
+- Selection preservation.
+- Pause/resume auto-scroll where appropriate.
+
+New events may be subtly highlighted. Do not continuously reorder the table in a way that makes an analyst lose the selected record.
+
+Format currency, dates, percentages, and latency consistently.
+
+## 12.5 Transaction investigation view
+
+Use a well-designed detail page or drawer.
+
+Show:
+
+1. Transaction and display metadata.
+2. All 12 model inputs.
+3. Redis behavioral signals.
+4. Model class probabilities.
+5. Risk score and documented interpretation.
+6. Top contributing features.
+7. Recommended action.
+8. Model, schema, feature, and policy versions.
+9. Timestamps and processing information.
+10. Review status and authorized reviewer actions.
+
+Separate the visual presentation of model prediction, behavioral evidence, and policy decision.
+
+Do not claim that a feature proves abuse or necessarily caused the prediction.
+
+## 12.6 Integrated traffic simulation workspace
+
+This must be inside the same React application and browser window.
+
+The presenter must never need to open Locust's administration UI.
+
+Include functional controls for:
+
+- Start.
+- Pause.
+- Resume.
+- Stop.
+- Target RPS.
+- Concurrency.
+- Duration.
+- Scenario.
+- Mixed scenario percentages.
+- Seed.
+- Active configuration.
+- Current run state.
+
+Validate the inputs. Confirm resource-intensive runs. Prevent duplicate starts and uncontrolled traffic.
+
+Show live charts and metrics for:
+
+- Generated vs processed vs failed requests.
+- Achieved throughput.
+- Latency p50/p95/p99.
+- Prediction distribution.
+- Configured vs observed scenario mix.
+- Recent transaction feed.
+- Current service and simulator state.
+
+Only show percentile metrics when enough samples exist. Explain empty or insufficient-sample states.
+
+## 12.7 Required live demo flow
+
+The application must support this sequence:
+
+1. Start mostly Genuine traffic.
+2. Observe real predictions and baseline performance.
+3. Increase the Suspicious scenario proportion.
+4. Observe how the actual generated requests and predictions change.
+5. Increase intensity gradually.
+6. Inspect measured throughput, latency, and failures.
+7. Stop the simulation.
+8. Open a suspicious transaction and examine the actual evidence.
+9. Run a coordinated-device scenario.
+10. Show how shared identity and accumulated Redis context influence subsequent decisions.
+
+Never fake this flow with preset charts or fabricated predictions.
+
+## 12.8 Charts and interactions
+
+Use one charting library.
+
+Charts need clear titles, labels, units, readable tooltips, and stable updates. Use line charts for time series and bars for distributions where appropriate. Avoid 3D charts and decorative visualizations.
+
+Implement consistent focus, hover, active, disabled, and loading states.
+
+Include keyboard accessibility, visible focus, validation errors, useful toasts, reconnection indicators, and history recovery after stream reconnects.
+
+Keep the frontend responsive at laptop/projector resolutions and smaller screens. Avoid page-level horizontal overflow.
+
+Separate the API client, components, state handling, formatting, and chart configuration.
+
+Use a browser-facing API URL configured through environment variables. Never use Docker-internal hostnames in browser code.
+
+Do not leave console errors, React warnings, fake data, or dead interactions.
+
+## 12.9 Visual verification
+
+Run the actual application and inspect it.
+
+If browser or screenshot tooling is available, inspect common resolutions such as 1366×768, 1440×900, and 1920×1080.
+
+Fix clipping, overflow, misalignment, unreadable text, and broken responsive layouts.
+
+If visual verification is not possible, report that limitation. Never claim screenshots or browser checks were performed when they were not.
+
+---
+
+# 13. DOCKER AND LOCAL DEPLOYMENT
+
+Use Docker Compose to orchestrate:
+
+- `frontend`
+- `api`
+- `redis`
+- `mongo`
+- `locust`
+
+An optional `trainer` or data-preparation profile may be included.
+
+Provide appropriate Dockerfiles, readiness checks, dependency handling, persistent MongoDB storage, model artifact paths, and startup/shutdown instructions.
+
+Inside Docker, services must communicate using service names, not `localhost`.
+
+Separate browser-facing API URLs from internal service URLs.
+
+Do not expose Redis, MongoDB, or Locust administration publicly by default. A documented development override may be supplied if necessary.
+
+Include:
+
+- `.env.example`
+- `.gitignore`
+- Pinned dependencies.
+- Persistent storage configuration.
+- Health checks.
+- Readiness behavior.
+- Clean startup instructions.
+- Troubleshooting guidance.
+
+Never commit real secrets.
+
+## Deployment preparation
+
+First make the local Docker stack reproducible.
+
+Then identify a practical cloud deployment target and document the necessary environment variables, networking, persistent storage, and hosting requirements.
+
+Do not claim a cloud deployment succeeded unless it was actually performed and verified.
+
+Identify missing credentials, accounts, cloud resources, or dataset access as outstanding steps.
+
+---
+
+# 14. SECURITY, RESPONSIBILITY, AND FAILURE HANDLING
+
+Use synthetic identities for demonstrations.
+
+Implement:
+
+- Environment-based secrets.
+- Restricted CORS.
+- Input validation.
+- Request-size and rate limits.
+- Authentication for administrative and reviewer actions.
+- Timeouts.
+- Structured logs.
+- Safe error responses.
+- Restricted internal services.
+- No unnecessary personal data.
+
+Never expose the simulation controller or destructive administrative actions without authorization.
+
+Treat all incoming data as untrusted.
+
+Document the limitations of the prototype. This is not a production-certified fraud-prevention system.
+
+A Suspicious classification means further review may be warranted, not that wrongdoing has been established.
+
+---
+
+# 15. TESTING AND VERIFICATION
+
+Tests must actually execute. Fix failures rather than hiding them.
+
+## 15.1 Data and ML tests
+
+Test:
+
+- Required columns.
+- Label values and mappings.
+- Feature types and ranges.
+- Missing-value behavior.
+- Category and binary validation.
+- Feature order.
+- Schema hash.
+- Artifact loading.
+- Three-class predictions.
+- Training/inference consistency.
+- UI metadata exclusion.
+- Held-out evaluation reporting.
+
+## 15.2 Redis tests
+
+Test:
+
+- Sliding-window boundaries.
+- TTL behavior.
+- Memory bounds.
+- Repeated attempts.
+- Shared device identities.
+- Duplicate and retry handling.
+- Stale and out-of-order timestamps.
+- Concurrent updates.
+- Failure behavior when Redis is unavailable.
+
+## 15.3 Backend and persistence tests
+
+Test:
+
+- Valid requests.
+- Invalid payloads.
+- Idempotency.
+- Duplicate transaction IDs.
+- Model loading failures.
+- Redis failures.
+- MongoDB persistence failures.
+- Partial-write recovery.
+- Policy behavior.
+- Authorized reviewer actions.
+- Event publishing and recovery.
+- Schema mismatch rejection.
+
+## 15.4 Simulation tests
+
+Test:
+
+- Every scenario mode.
+- Scenario-mix validation.
+- Generated request distribution.
+- Start/pause/resume/stop.
+- Duplicate-start rejection.
+- Authentication.
+- Resource caps.
+- Automatic stop.
+- Actual HTTP requests reaching FastAPI.
+- Actual Redis state changes.
+- Actual inference and MongoDB records.
+- Metrics consistency.
+
+## 15.5 Frontend and end-to-end tests
+
+Verify:
+
+- Dashboard data comes from the backend.
+- Search, filters, sorting, and selection work.
+- Transaction details are correct.
+- Simulation controls work.
+- Live updates and reconnect recovery work.
+- Loading, empty, and error states work.
+- Service status is real.
+- No visible controls are inert.
+- The coordinated-device demo is repeatable.
+
+## 15.6 Performance tests
+
+Measure:
+
+- Inference latency.
+- Total API latency.
+- p50/p95/p99 where sample sizes permit.
+- Achieved throughput.
+- Failed request rate.
+- HTTP status distribution.
+- Scenario mix.
+- Environment and hardware/container conditions.
+
+Ramp traffic gradually and keep correctness checks enabled.
+
+Do not hard-code latency claims or claim a target throughput was achieved without measurements.
+
+Document every test that could not run and the exact reason.
+
+---
+
+# 16. SIX-HOUR EXECUTION PLAN
+
+Use this sequence as a time budget, not permission to skip verification.
+
+## Stage 1: Audit and contracts, approximately 25 minutes
+
+- Inspect the workspace and dataset.
+- Create the living checklist.
+- Define the shared schema.
+- Document compatibility issues.
+- Establish API and database contracts.
+
+**Checkpoint:** Dataset status and implementation plan are explicit.
+
+## Stage 2: Core backend, approximately 60 minutes
+
+- Build FastAPI.
+- Add validation.
+- Implement Redis features and idempotency.
+- Implement MongoDB persistence.
+- Integrate a temporary clearly labeled model stub only if needed to prove the core flow.
+
+**Checkpoint:** A valid request flows through the backend, Redis, policy placeholder, MongoDB, and response.
+
+## Stage 3: ML integration, approximately 60 minutes
+
+- Prepare the supplied dataset or clearly labeled fallback.
+- Train and evaluate when possible.
+- Save artifacts and metadata.
+- Integrate model loading, prediction, policy, and explanations.
+
+**Checkpoint:** Real artifact loading and three-class inference work, or the precise blocker is documented.
+
+## Stage 4: Docker and traffic engine, approximately 60 minutes
+
+- Containerize the services.
+- Start the Compose stack.
+- Implement Locust scenarios.
+- Connect simulation controls to the backend.
+- Verify actual requests and metrics.
+
+**Checkpoint:** Real load reaches the API and can be controlled.
+
+## Stage 5: Dashboard, approximately 75 minutes
+
+- Establish the design system.
+- Build the application shell.
+- Integrate real transaction data.
+- Build investigation views.
+- Implement simulation controls and analytics.
+- Connect live updates.
+
+**Checkpoint:** The same browser window can control traffic and display real decisions.
+
+## Stage 6: Hardening and demo preparation, approximately 60 minutes
+
+- Run tests.
+- Fix integration failures.
+- Inspect the visual layout.
+- Run a controlled load test.
+- Verify a clean startup.
+- Prepare documentation and the demonstration script.
+
+**Checkpoint:** The end-to-end demonstration is repeatable, or remaining blockers are explicitly listed.
+
+## Time management rules
+
+At every checkpoint:
+
+1. Record what works.
+2. Record what has been tested.
+3. Record what remains.
+4. Fix blockers affecting the core flow before polishing secondary features.
+5. If time is running out, simplify nonessential features without pretending they are complete.
+
+Never attempt a risky full rewrite near the deadline when a working version already exists.
+
+---
+
+# 17. REQUIRED DELIVERABLES
+
+Deliver as much of the following as is actually implemented and verified:
+
+- React dashboard.
+- FastAPI backend.
+- Shared feature schema.
+- Dataset audit and feature mapping.
+- Data validation and preprocessing.
+- Training and evaluation scripts.
+- Model artifacts if training genuinely succeeds.
+- Live traffic pool.
+- Locust scenario generator.
+- Redis behavioral engine.
+- MongoDB persistence and audit history.
+- Dashboard-controlled simulation.
+- Live updates and transaction investigation.
+- Dockerfiles and Compose.
+- `.env.example`.
+- Unit, integration, and end-to-end tests.
+- Architecture documentation.
+- API documentation.
+- Risk policy documentation.
+- README and troubleshooting guide.
+- Deployment guide.
+- Verification report.
+- Live demonstration script.
+- Judge-facing explanation of architecture, ML evaluation, Redis behavior, fairness, failure handling, and limitations.
+
+## README requirements
+
+Explain:
+
+1. Prerequisites.
+2. Project architecture.
+3. Dataset location and format.
+4. Dataset validation.
+5. Feature mappings.
+6. Training commands.
+7. Artifact requirements.
+8. Environment configuration.
+9. Docker startup and shutdown.
+10. Dashboard usage.
+11. Simulation controls.
+12. Test commands.
+13. Headless Locust commands.
+14. Performance measurement.
+15. Deployment preparation.
+16. Troubleshooting.
+
+Provide exact commands that match the files actually created.
+
+---
+
+# 18. FINAL ACCEPTANCE CRITERIA
+
+Do not declare the project complete until each item has been verified or explicitly marked incomplete.
+
+## Dataset and ML
+
+- [ ] Supplied dataset inspected when available.
+- [ ] Dataset provenance and limitations documented.
+- [ ] Three-class labels validated.
+- [ ] Shared 12-feature schema enforced.
+- [ ] No UI metadata or scenario intent enters the model.
+- [ ] Artifacts load correctly.
+- [ ] Three-class predictions execute.
+- [ ] Held-out evaluation uses real predictions.
+- [ ] Synthetic metrics are clearly labeled if applicable.
+
+## Backend and Redis
+
+- [ ] A real refund request reaches FastAPI.
+- [ ] Redis computes behavioral context.
+- [ ] Model prediction and policy decision are separate.
+- [ ] MongoDB persists the decision and evidence.
+- [ ] Idempotency and duplicate handling work.
+- [ ] Concurrent updates are tested.
+- [ ] Failure behavior is explicit.
+- [ ] A coordinated-identity demonstration shows real behavioral changes.
+
+## Traffic simulation
+
+- [ ] Locust sends real HTTP requests.
+- [ ] All scenario modes work.
+- [ ] Configurable proportions affect generated requests.
+- [ ] Target RPS and concurrency are bounded.
+- [ ] Dashboard start/pause/resume/stop controls work.
+- [ ] Metrics are measured rather than fabricated.
+- [ ] A real load test has been attempted and its outcome recorded.
+
+## Frontend
+
+- [ ] The dashboard displays real backend decisions.
+- [ ] Transaction search and filtering work.
+- [ ] Investigation views show actual feature and behavioral snapshots.
+- [ ] Simulation controls work in the same React application.
+- [ ] Live updates and reconnect recovery work.
+- [ ] No dead navigation items or misleading mock metrics.
+- [ ] Visual verification is recorded honestly.
+
+## Deployment and testing
+
+- [ ] Docker Compose configuration is present.
+- [ ] Services use correct internal networking.
+- [ ] Readiness checks work.
+- [ ] MongoDB persistence is configured.
+- [ ] Environment template is present.
+- [ ] Relevant tests have actually run.
+- [ ] Startup and shutdown commands are documented.
+- [ ] The final demonstration has been attempted.
+- [ ] Remaining limitations are disclosed.
+
+---
+
+# 19. REQUIRED FINAL REPORT
+
+When implementation reaches its deadline or a meaningful stopping point, produce `docs/verification_report.md` and a concise summary in the terminal.
+
+The report must state:
+
+1. What was implemented.
+2. Which dataset was actually used.
+3. Whether the dataset was suitable.
+4. Whether training succeeded.
+5. Actual held-out evaluation results and their limitations.
+6. Which tests ran and which failed.
+7. Which tests could not run and why.
+8. Whether Docker Compose started successfully.
+9. Whether the dashboard displays real backend decisions.
+10. Whether the dashboard controls the real Locust simulation.
+11. Whether coordinated-device behavior was demonstrated.
+12. Measured performance and the test environment.
+13. Exact startup, test, simulation, and shutdown commands.
+14. Deployment readiness and outstanding infrastructure requirements.
+15. Every incomplete acceptance criterion.
+
+Do not hide incomplete functionality behind static mockups or an optimistic summary.
+
+Clearly distinguish:
+
+- Implemented.
+- Tested.
+- Verified.
+- Partially implemented.
+- Blocked.
+- Not implemented.
+
+---
+
+# 20. BEGIN NOW
+
+Start with **Stage 1: workspace and dataset audit**.
+
+Immediately inspect the actual workspace and any supplied dataset. Then report:
+
+1. The files and existing code discovered.
+2. Whether the prepared dataset is accessible.
+3. Any dataset compatibility issues.
+4. The initial repository and API contracts.
+5. The concise execution plan.
+6. The living checklist with current statuses.
+
+After reporting this, continue implementation without waiting for unnecessary approval. If the dataset is unavailable, continue all independent work and request it only when real training requires it.
+
+**Build a real, integrated, polished, reproducible ReturnShield application. Prioritize correctness, transparent evidence, reliable live demonstration, and honest verification over superficial feature count.**
+
+The file `train_data.csv` is open in my Antigravity IDE workspace. Begin Stage 1 of the ReturnShield master build prompt.
+
+First, locate the actual CSV file on disk and inspect it programmatically using Python and pandas. Do not rely only on the editor preview.
+
+1. Report the absolute file path, row count, column count, column names, and data types.
+2. Verify the target column and the meanings of labels 0, 1, and 2.
+3. Check class distribution, missing values, duplicates, feature ranges, and potential data leakage.
+4. Validate compatibility with ReturnShield's exact 12-feature schema.
+5. Check whether `weight_discrepancy_grams` is available at refund-request time and whether `shared_identity_links` is compatible with the value computed from Redis.
+6. Preserve the original CSV unchanged. Do not silently relabel the target or replace the dataset with synthetic data.
+7. Create `docs/dataset_audit.md` and a machine-readable audit report.
+
+After the audit, show me your concise implementation plan and living checklist, then immediately continue building ReturnShield according to the master prompt. Do not stop after producing the audit or plan.
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-14T13:04:29+05:30.
+
+The user's current state is as follows:
+Active Document: c:\Users\kaoushik\AppData\Local\Packages\5319275A.WhatsAppDesktop_cv1g1gvanyjgm\LocalState\sessions\EEB7EA912937E4294FBA9E87E26F23C7471AF6BF\transfers\2026-42\train_data.csv (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 1
+Other open documents:
+- c:\Users\kaoushik\AppData\Local\Packages\5319275A.WhatsAppDesktop_cv1g1gvanyjgm\LocalState\sessions\EEB7EA912937E4294FBA9E87E26F23C7471AF6BF\transfers\2026-42\train_data.csv (LANGUAGE_UNSPECIFIED)
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from None to Claude Sonnet 4.6 (Thinking). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>

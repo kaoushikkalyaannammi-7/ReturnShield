@@ -1,0 +1,54 @@
+{
+  "source_file": "data\\raw\\train_data.csv",
+  "source_sha256": "ccfc16f5d75d6a0f8259000b66404c54a0851b025c888aa40291c507c17b825c",
+  "schema_hash": "71b5937057f82bc0",
+  "n_features": 12,
+  "feature_names": [
+    "account_age_days",
+    "total_past_orders",
+    "historical_return_ratio",
+    "past_inr_claims",
+    "item_price",
+    "product_category_code",
+    "return_reason_code",
+    "hours_since_delivery",
+    "weight_discrepancy_grams",
+    "shared_identity_links",
+    "is_cod_order",
+    "purchased_in_sale"
+  ],
+  "target_col": "target_label",
+  "label_map": {
+    "0": "Genuine",
+    "1": "Mistaken",
+    "2": "Suspicious"
+  },
+  "random_seed": 42,
+  "null_injection_rate": 0.2,
+  "weight_imputation_median": 10.9,
+  "total_rows": 10000,
+  "train_rows": 7000,
+  "val_rows": 1500,
+  "test_rows": 1500,
+  "class_distribution": {
+    "0": 5783,
+    "1": 2567,
+    "2": 1650
+  },
+  "train_class_distribution": {
+    "0": 4048,
+    "1": 1797,
+    "2": 1155
+  },
+  "test_class_distribution": {
+    "0": 867,
+    "1": 385,
+    "2": 248
+  },
+  "leakage_warning_weight_disc": "weight_discrepancy_grams >100 perfectly predicts label=2 in raw data. 20% null injection mitigates over-reliance.",
+  "inference_note_shared_identity": "shared_identity_links must be computed from Redis at inference. Training column used as proxy.",
+  "transformations": [
+    "20% random null injection into weight_discrepancy_grams (seed=42)",
+    "Stratified 70/15/15 split (seed=42)"
+  ]
+}

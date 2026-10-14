@@ -1,0 +1,109 @@
+{
+  "model_version": "1.0.0",
+  "schema_hash": "71b5937057f82bc0",
+  "feature_names": [
+    "account_age_days",
+    "total_past_orders",
+    "historical_return_ratio",
+    "past_inr_claims",
+    "item_price",
+    "product_category_code",
+    "return_reason_code",
+    "hours_since_delivery",
+    "weight_discrepancy_grams",
+    "shared_identity_links",
+    "is_cod_order",
+    "purchased_in_sale"
+  ],
+  "n_features": 12,
+  "label_map": {
+    "0": "Genuine",
+    "1": "Mistaken",
+    "2": "Suspicious"
+  },
+  "nullable_features": [
+    "weight_discrepancy_grams"
+  ],
+  "weight_imputation_median": 10.9,
+  "random_seed": 42,
+  "training_timestamp": "2026-10-14T07:42:17.884210+00:00",
+  "library_versions": {
+    "xgboost": "3.2.0",
+    "sklearn": "1.8.0",
+    "numpy": "2.4.3",
+    "pandas": "3.0.1"
+  },
+  "hyperparameters": {
+    "n_estimators": 164,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "min_child_weight": 5,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8
+  },
+  "evaluation": {
+    "classification_report": {
+      "Genuine": {
+        "precision": 0.9854545454545455,
+        "recall": 0.9377162629757786,
+        "f1-score": 0.9609929078014184,
+        "support": 867.0
+      },
+      "Mistaken": {
+        "precision": 0.8866995073891626,
+        "recall": 0.935064935064935,
+        "f1-score": 0.9102402022756005,
+        "support": 385.0
+      },
+      "Suspicious": {
+        "precision": 0.8475836431226765,
+        "recall": 0.9193548387096774,
+        "f1-score": 0.8820116054158608,
+        "support": 248.0
+      },
+      "accuracy": 0.934,
+      "macro avg": {
+        "precision": 0.906579231988795,
+        "recall": 0.9307120122501303,
+        "f1-score": 0.9177482384976265,
+        "support": 1500.0
+      },
+      "weighted avg": {
+        "precision": 0.9373127631655614,
+        "recall": 0.934,
+        "f1-score": 0.9349081380553796,
+        "support": 1500.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        813,
+        30,
+        24
+      ],
+      [
+        8,
+        360,
+        17
+      ],
+      [
+        4,
+        16,
+        228
+      ]
+    ],
+    "test_size": 1500,
+    "test_class_distribution": {
+      "Genuine": 867,
+      "Mistaken": 385,
+      "Suspicious": 248
+    },
+    "note": "Metrics on held-out test set. weight_discrepancy_grams imputed with training median for null rows.",
+    "warning": "weight_discrepancy_grams has near-perfect separation for Suspicious label in training data. These metrics may not reflect real-world performance."
+  },
+  "warnings": [
+    "weight_discrepancy_grams has near-perfect label separation for Suspicious class.",
+    "Metrics are demonstration metrics only. Not validated on real-world fraud data.",
+    "shared_identity_links is pre-computed in training; Redis-computed at inference."
+  ]
+}

@@ -1,0 +1,29 @@
+﻿# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+
+# Node
+node_modules/
+dist/
+.npm/
+
+# Data (preserve raw, ignore derived)
+data/derived/
+data/live_traffic_pool.csv
+
+# Model artifacts (committed for demo but gitignored for production)
+# ml/artifacts/model.pkl
+# ml/artifacts/model_metadata.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

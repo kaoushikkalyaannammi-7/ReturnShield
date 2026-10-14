@@ -1,0 +1,93 @@
+﻿version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: rs_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: returnshield
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rs_net
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: rs_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-returnshield_redis_secret} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-returnshield_redis_secret}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rs_net
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: rs_api
+    restart: unless-stopped
+    environment:
+      MONGODB_URL: mongodb://mongo:27017
+      MONGODB_DB: returnshield
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-returnshield_redis_secret}
+      MODEL_PATH: /app/ml/artifacts/model.pkl
+      MODEL_METADATA_PATH: /app/ml/artifacts/model_metadata.json
+      SECRET_KEY: ${SECRET_KEY:-changeme-dev-only}
+      SIM_ADMIN_KEY: ${SIM_ADMIN_KEY:-sim-admin-key-changeme}
+      CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000","http://frontend:5173"]'
+      BACKEND_INTERNAL_URL: http://api:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rs_net
+    volumes:
+      - ./ml/artifacts:/app/ml/artifacts:ro
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    container_name: rs_frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+    networks:
+      - rs_net
+
+volumes:
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  rs_net:
+    driver: bridge
