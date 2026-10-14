@@ -83,15 +83,22 @@ async def compute_behavioral_features(
     pipe.zcount(customer_key, now - WINDOW_1H, "+inf")
     pipe.zcount(customer_key, now - WINDOW_24H, "+inf")
     pipe.zrangebyscore(amount_key, now - WINDOW_24H, "+inf", withscores=True)
-    pipe.zrevrangebyscore(customer_key, "+inf", "-inf", start=0, count=1, withscores=True)
+    pipe.zrevrangebyscore(customer_key, "+inf", "-inf", start=0, num=1, withscores=True)
     results = await pipe.execute()
 
     recent_requests_1h = int(results[0])
     recent_requests_24h = int(results[1])
-    amount_entries = results[2]  # [(member, score)] where member is the amount
+    amount_entries = results[2]  # [(member, score)]
     last_request_entries = results[3]
 
-    recent_amount_24h = sum(float(m) for m, _s in amount_entries)
+    recent_amount_24h = 0.0
+    for m, _s in amount_entries:
+        try:
+            amt_str = m.split(":")[0] if isinstance(m, str) and ":" in m else str(m)
+            recent_amount_24h += float(amt_str)
+        except (ValueError, TypeError):
+            pass
+
 
     # Time since last request
     time_since_last = None
@@ -99,11 +106,14 @@ async def compute_behavioral_features(
         last_ts = float(last_request_entries[0][1])
         time_since_last = now - last_ts
 
-    # Shared device accounts
+    # Shared device accounts (number of OTHER accounts sharing this device)
     shared_device_accounts = 0
     if device_id:
         device_key = f"rs:dev:{device_id}"
-        shared_device_accounts = max(0, await r.scard(device_key) - 1)  # exclude self
+        is_member = await r.sismember(device_key, customer_id)
+        card = await r.scard(device_key)
+        shared_device_accounts = max(0, card - 1) if is_member else card
+
 
     # Shared identity links (authoritative value for model feature)
     identity_key = f"rs:idn:{customer_id}"

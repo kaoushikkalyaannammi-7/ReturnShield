@@ -1,4 +1,4 @@
-﻿"""
+"""
 ReturnShield Simulation Controller
 =====================================
 Controls the Locust load generator process.
@@ -153,9 +153,11 @@ async def resume_simulation() -> dict:
     async with _sim_lock:
         if _sim_state["status"] != "paused":
             return {"error": "Not paused"}
+        _sim_state["status"] = "stopped"
 
     config = _sim_state["config"]
     return await start_simulation(config)
+
 
 
 async def update_sim_metrics(update: dict):
