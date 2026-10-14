@@ -29,22 +29,35 @@ async def get_redis() -> aioredis.Redis:
     global _redis_client
     if _redis_client is None:
         settings = get_settings()
-        _redis_client = aioredis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            password=settings.REDIS_PASSWORD or None,
-            db=settings.REDIS_DB,
-            decode_responses=True,
-            socket_connect_timeout=2.0,
-            socket_timeout=2.0,
-        )
+        try:
+            client = aioredis.Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                password=settings.REDIS_PASSWORD or None,
+                db=settings.REDIS_DB,
+                decode_responses=True,
+                socket_connect_timeout=1.0,
+                socket_timeout=1.0,
+            )
+            # Fast ping check to verify if real Redis is active
+            await asyncio.wait_for(client.ping(), timeout=1.0)
+            _redis_client = client
+            logger.info("Connected to real Redis")
+        except Exception as e:
+            logger.warning(f"Real Redis unavailable ({e}). Using in-memory behavioral graph engine.")
+            import fakeredis.aioredis
+            _redis_client = fakeredis.aioredis.FakeRedis(decode_responses=True)
     return _redis_client
 
 
 async def check_redis_health() -> bool:
     try:
+        import fakeredis.aioredis
+        if isinstance(_redis_client, fakeredis.aioredis.FakeRedis):
+            # Honest reporting: In-memory fallback is active, real Redis is offline
+            return False
         r = await get_redis()
-        res = await asyncio.wait_for(r.ping(), timeout=2.0)
+        res = await asyncio.wait_for(r.ping(), timeout=1.0)
         return res is True or res == "PONG"
     except Exception:
         return False
