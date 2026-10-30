@@ -5,17 +5,35 @@
 const BASE = import.meta.env.VITE_API_URL || "";
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "sim-admin-key-changeme";
 
+
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
+
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
+    const err = await res.json().catch(() => ({
+      detail: res.statusText,
+    }));
+
+    const detail = err.detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : detail != null
+          ? JSON.stringify(detail)
+          : `HTTP ${res.status}`;
+
+    throw new Error(message);
   }
+
   return res.json();
 }
+
 
 function adminHeaders() {
   return { "X-Admin-Key": ADMIN_KEY };
